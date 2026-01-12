@@ -6,16 +6,15 @@
 //
 
 import SwiftUI
-import CoreData
 
 @main
 struct InteresnoChatApp: App {
-    let persistenceController = PersistenceController.shared
+    @StateObject private var authManager = AuthManager()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+            RootView()
+                .environmentObject(authManager)
         }
     }
 }
