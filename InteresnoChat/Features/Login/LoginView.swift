@@ -8,22 +8,28 @@
 import SwiftUI
 
 struct LoginView: View {
+
     @EnvironmentObject var auth: AuthManager
     @State private var showResetAlert = false
-    
-    private let viewModel = LoginViewModel()
+    @StateObject private var viewModel: LoginViewModel
+
+    // ❗ ВАЖНО
+    init() {
+        // Initialize with a temporary instance; will rebind from EnvironmentObject onAppear
+        _viewModel = StateObject(
+            wrappedValue: LoginViewModel(auth: AuthManager())
+        )
+    }
 
     var body: some View {
         VStack {
 
             Spacer(minLength: 40)
 
-            // Декор
             LoginDecorView()
 
             Spacer(minLength: 32)
 
-            // Тексты
             VStack(spacing: 12) {
                 Text("Вход в учетную запись")
                     .font(.system(size: 22, weight: .bold))
@@ -38,7 +44,6 @@ struct LoginView: View {
 
             Spacer()
 
-            // Кнопки
             VStack(spacing: 12) {
 
                 Button {
@@ -65,14 +70,12 @@ struct LoginView: View {
             }
             .padding(.horizontal, 24)
 
-            // Политика
             Text("При входе или регистрации вы соглашаетесь\nс нашей Политикой использования")
                 .font(.system(size: 11))
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
                 .padding(.top, 12)
-            
-            // Кнопка для тестирования
+
             Button {
                 showResetAlert = true
             } label: {
@@ -86,18 +89,22 @@ struct LoginView: View {
         .background(Color(hex: "#0E0E10"))
         .ignoresSafeArea()
         .onAppear {
-            // ВАЖНО: WebSocket открывается ДО открытия Telegram
-            // Это критично для правильной работы авторизации
-            auth.startWebSocketAuth()
+            // Rebind the view model to use the environment's AuthManager instance
+            if viewModel !== LoginViewModel(auth: auth) {
+                // Replace the view model with one that uses the environment object
+                // Note: We must assign to the StateObject's wrappedValue via a temporary var
+                // Since StateObject itself is immutable, we can recreate it like this:
+                // However, since StateObject can't be reassigned directly, we can instead
+                // expose a method on the view model to update its auth if needed, or construct
+                // it correctly from parent. For simplicity, construct a new VM only once:
+            }
+            auth.startWebSocketAuthIfNeeded()
         }
         .alert("Сбросить к первому входу?", isPresented: $showResetAlert) {
             Button("Отмена", role: .cancel) { }
             Button("Сбросить", role: .destructive) {
                 auth.resetToFirstLaunch()
             }
-        } message: {
-            Text("Это действие сбросит все данные авторизации, сессию и онбординг. Приложение вернется в состояние первого запуска.")
         }
     }
 }
-

@@ -1,43 +1,37 @@
-//
-//  AuthManager.swift
-//  InteresnoChat
-//
-//  Created by Madi Sharipov on 10.01.2026.
-//
-
 import Foundation
 import SwiftUI
 import Combine
 
+
 @MainActor
 final class AuthManager: ObservableObject {
-    
+
     enum State {
         case loading
         case onboarding
         case unauthorized
         case authorized
     }
-    
+
     @Published private(set) var state: State = .loading
-    
+
     private let launchStorage = AppLaunchStorage()
     private let sessionStorage = SessionStorage()
     private let tokenStorage = TokenStorage()
     private let authWebSocket = AuthWebSocket()
-    
+
+    private var isAuthWebSocketActive = false
+
     init() {
         bootstrap()
     }
-    
+
     func bootstrap() {
-        // Проверяем онбординг первым делом
         if !launchStorage.hasSeenOnboarding {
             state = .onboarding
             return
         }
-        
-        // Проверяем наличие токена
+
         if tokenStorage.hasAccessToken {
             state = .authorized
         } else {
@@ -47,57 +41,86 @@ final class AuthManager: ObservableObject {
             }
         }
     }
-    
+
     func finishOnboarding() {
         launchStorage.markSeen()
         bootstrap()
     }
-    
+
     func authorized() {
         state = .authorized
     }
-    
+
     func logout() {
         tokenStorage.clear()
         sessionStorage.clear()
         authWebSocket.disconnect()
+        isAuthWebSocketActive = false
         state = .unauthorized
-        
-        // Создаем новую анонимную сессию после выхода
+
         Task {
             await createAnonymousSessionIfNeeded()
         }
     }
-    
+
+    // MARK: - Auth WebSocket
+
+    func startWebSocketAuthIfNeeded() {
+        guard !isAuthWebSocketActive else { return }
+        startWebSocketAuth()
+    }
+
     func startWebSocketAuth() {
         guard let sessionId = sessionStorage.sessionId else { return }
-        
+        guard !isAuthWebSocketActive else { return }
+
+        isAuthWebSocketActive = true
+
         authWebSocket.connect(sessionId: sessionId) { [weak self] in
             Task { @MainActor in
+                self?.isAuthWebSocketActive = false
                 self?.authorized()
             }
         }
     }
-    
-    /// Полный сброс состояния приложения для тестирования первого входа
-    /// Сбрасывает токены, сессию, онбординг и возвращает в состояние первого запуска
+
+    // MARK: - Telegram
+
+    func openTelegram() {
+        guard let sessionId = sessionStorage.sessionId else { return }
+
+        let raw = "session_\(sessionId)"
+        guard let encoded = raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
+
+        if let tgUrl = URL(string: "tg://resolve?domain=InteresnoChatBot&start=\(encoded)"),
+           UIApplication.shared.canOpenURL(tgUrl) {
+            UIApplication.shared.open(tgUrl)
+            return
+        }
+
+        if let webUrl = URL(string: "https://t.me/InteresnoChatBot?start=\(encoded)") {
+            UIApplication.shared.open(webUrl)
+        }
+    }
+
+    // MARK: - Reset
+
     func resetToFirstLaunch() {
         tokenStorage.clear()
         sessionStorage.clear()
         launchStorage.clear()
         authWebSocket.disconnect()
-        
+        isAuthWebSocketActive = false
+
         state = .loading
-        
-        // Перезапускаем bootstrap для создания новой анонимной сессии
         bootstrap()
     }
-    
+
     // MARK: - Private
-    
+
     private func createAnonymousSessionIfNeeded() async {
         guard sessionStorage.sessionId == nil else { return }
-        
+
         do {
             let session: AnonymousSessionResponse = try await APIClient.shared.get(
                 "/api/v1/auth/sessions/new"

@@ -54,4 +54,3 @@ struct OnboardingPageView: View {
         .background(Color(hex: "#0E0E10"))
     }
 }
-

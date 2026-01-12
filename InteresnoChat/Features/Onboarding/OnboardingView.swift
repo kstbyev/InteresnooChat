@@ -46,4 +46,3 @@ struct OnboardingView: View {
         auth.finishOnboarding()
     }
 }
-
