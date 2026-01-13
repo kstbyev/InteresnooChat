@@ -11,7 +11,6 @@ struct LoginView: View {
 
     @EnvironmentObject var auth: AuthManager
     @State private var showResetAlert = false
-    @State private var showQR = false
 
     var body: some View {
         VStack {
@@ -40,7 +39,7 @@ struct LoginView: View {
 
                 Button {
                     auth.startWebSocketAuthIfNeeded()
-                    showQR = true
+                    auth.showTelegramQR()
                 } label: {
                     Text("Войти в приложение")
                         .frame(maxWidth: .infinity)
@@ -52,7 +51,7 @@ struct LoginView: View {
 
                 Button {
                     auth.startWebSocketAuthIfNeeded()
-                    showQR = true
+                    auth.showTelegramQR()
                 } label: {
                     Text("Зарегистрироваться")
                         .frame(maxWidth: .infinity)
@@ -83,12 +82,8 @@ struct LoginView: View {
         .background(Color(hex: "#0E0E10"))
         .ignoresSafeArea()
         .onAppear {
-            // На всякий случай: если сессия уже есть, подготовим WebSocket при первом заходе
+            // Если сессия уже есть, подготовим WebSocket при первом заходе
             auth.startWebSocketAuthIfNeeded()
-        }
-        .fullScreenCover(isPresented: $showQR) {
-            TelegramLoginQRView()
-                .environmentObject(auth)
         }
         .alert("Сбросить к первому входу?", isPresented: $showResetAlert) {
             Button("Отмена", role: .cancel) { }

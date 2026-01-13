@@ -10,6 +10,7 @@ final class AuthManager: ObservableObject {
         case loading
         case onboarding
         case unauthorized
+        case telegramQR
         case authorized
     }
 
@@ -21,6 +22,11 @@ final class AuthManager: ObservableObject {
     private let authWebSocket = AuthWebSocket()
 
     private var isAuthWebSocketActive = false
+
+    // Публичный доступ к текущему sessionId для QR-экрана
+    var currentSessionId: String? {
+        sessionStorage.sessionId
+    }
 
     init() {
         bootstrap()
@@ -60,6 +66,21 @@ final class AuthManager: ObservableObject {
 
         Task {
             await createAnonymousSessionIfNeeded()
+        }
+    }
+
+    // MARK: - QR Flow control
+
+    func showTelegramQR() {
+        state = .telegramQR
+    }
+
+    func closeTelegramQR() {
+        // Возвращаемся на экран логина (не авторизованы)
+        if tokenStorage.hasAccessToken {
+            state = .authorized
+        } else {
+            state = .unauthorized
         }
     }
 
@@ -131,4 +152,3 @@ final class AuthManager: ObservableObject {
         }
     }
 }
-

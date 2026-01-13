@@ -1,10 +1,3 @@
-//
-//  RootView.swift
-//  InteresnoChat
-//
-//  Created by Madi Sharipov on 10.01.2026.
-//
-
 import SwiftUI
 
 struct RootView: View {
@@ -14,13 +7,12 @@ struct RootView: View {
         switch auth.state {
         case .loading:
             SplashView()
-            
         case .onboarding:
             OnboardingView()
-            
         case .unauthorized:
             LoginView()
-            
+        case .telegramQR:
+            TelegramLoginQRView()
         case .authorized:
             ChatListView()
         }
