@@ -11,15 +11,7 @@ struct LoginView: View {
 
     @EnvironmentObject var auth: AuthManager
     @State private var showResetAlert = false
-    @StateObject private var viewModel: LoginViewModel
-
-    // ❗ ВАЖНО
-    init() {
-        // Initialize with a temporary instance; will rebind from EnvironmentObject onAppear
-        _viewModel = StateObject(
-            wrappedValue: LoginViewModel(auth: AuthManager())
-        )
-    }
+    @State private var showQR = false
 
     var body: some View {
         VStack {
@@ -47,7 +39,8 @@ struct LoginView: View {
             VStack(spacing: 12) {
 
                 Button {
-                    viewModel.authorizeViaTelegram()
+                    auth.startWebSocketAuthIfNeeded()
+                    showQR = true
                 } label: {
                     Text("Войти в приложение")
                         .frame(maxWidth: .infinity)
@@ -58,7 +51,8 @@ struct LoginView: View {
                 }
 
                 Button {
-                    viewModel.authorizeViaTelegram()
+                    auth.startWebSocketAuthIfNeeded()
+                    showQR = true
                 } label: {
                     Text("Зарегистрироваться")
                         .frame(maxWidth: .infinity)
@@ -89,16 +83,12 @@ struct LoginView: View {
         .background(Color(hex: "#0E0E10"))
         .ignoresSafeArea()
         .onAppear {
-            // Rebind the view model to use the environment's AuthManager instance
-            if viewModel !== LoginViewModel(auth: auth) {
-                // Replace the view model with one that uses the environment object
-                // Note: We must assign to the StateObject's wrappedValue via a temporary var
-                // Since StateObject itself is immutable, we can recreate it like this:
-                // However, since StateObject can't be reassigned directly, we can instead
-                // expose a method on the view model to update its auth if needed, or construct
-                // it correctly from parent. For simplicity, construct a new VM only once:
-            }
+            // На всякий случай: если сессия уже есть, подготовим WebSocket при первом заходе
             auth.startWebSocketAuthIfNeeded()
+        }
+        .fullScreenCover(isPresented: $showQR) {
+            TelegramLoginQRView()
+                .environmentObject(auth)
         }
         .alert("Сбросить к первому входу?", isPresented: $showResetAlert) {
             Button("Отмена", role: .cancel) { }
